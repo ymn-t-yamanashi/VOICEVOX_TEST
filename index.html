@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>VOICEVOX TTS (ローカルAPI)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>VOICEVOX テキスト読み上げ</h1>
+        <p>ローカルでDocker起動したVOICEVOX Engine (50021ポート) に接続します。</p>
+
+        <label for="speaker-select">話者選択:</label>
+        <select id="speaker-select">
+            <option value="3">四国めたん (ノーマル)</option>
+            <option value="2">ずんだもん (ノーマル)</option>
+            <option value="4">春日部つむぎ (ノーマル)</option>
+            </select>
+        <br><br>
+        
+        <textarea id="text-input" placeholder="ここに喋らせたいテキストを入力してください" required>こんにちは、VOICEVOXのテストです。</textarea>
+        
+        <button id="speak-button" onclick="speakText()">喋らせる</button>
+        <p class="status" id="status-message">準備完了</p>
+        
+        <audio id="audio-player" controls style="width: 100%; margin-top: 15px; display: none;"></audio>
+    </div>
+
+    <script>
+        const VOICEVOX_URL = "http://localhost:50021"; // VOICEVOX EngineのURL
+        const textInput = document.getElementById('text-input');
+        const speakerSelect = document.getElementById('speaker-select');
+        const speakButton = document.getElementById('speak-button');
+        const statusMessage = document.getElementById('status-message');
+        const audioPlayer = document.getElementById('audio-player');
+
+        /**
+         * ステータスメッセージを更新します
+         * @param {string} message - 表示するメッセージ
+         * @param {string} color - メッセージの色 (オプション)
+         */
+        function updateStatus(message, color = 'black') {
+            statusMessage.textContent = message;
+            statusMessage.style.color = color;
+        }
+
+        /**
+         * テキストを音声に変換して再生します
+         */
+        async function speakText() {
+            const text = textInput.value.trim();
+            const speakerId = speakerSelect.value;
+
+            if (!text) {
+                updateStatus("テキストを入力してください。", 'orange');
+                return;
+            }
+
+            speakButton.disabled = true;
+            updateStatus("音声クエリを作成中...", 'blue');
+            audioPlayer.style.display = 'none';
+
+            try {
+                // 1. **音声合成クエリ**の作成 (audio_query)
+                const queryParams = new URLSearchParams({
+                    text: text,
+                    speaker: speakerId
+                });
+                const queryUrl = `${VOICEVOX_URL}/audio_query?${queryParams}`;
+
+                const queryResponse = await fetch(queryUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!queryResponse.ok) {
+                    throw new Error(`audio_query failed with status ${queryResponse.status}`);
+                }
+
+                const audioQuery = await queryResponse.json();
+
+                updateStatus("音声合成中...", 'blue');
+
+                // 2. **音声合成**の実行 (synthesis)
+                const synthesisParams = new URLSearchParams({
+                    speaker: speakerId
+                });
+                const synthesisUrl = `${VOICEVOX_URL}/synthesis?${synthesisParams}`;
+
+                const synthesisResponse = await fetch(synthesisUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(audioQuery)
+                });
+
+                if (!synthesisResponse.ok) {
+                    throw new Error(`synthesis failed with status ${synthesisResponse.status}`);
+                }
+
+                // 3. **音声データの取得と再生**
+                const wavBlob = await synthesisResponse.blob();
+                const audioUrl = URL.createObjectURL(wavBlob);
+
+                audioPlayer.src = audioUrl;
+                audioPlayer.style.display = 'block';
+                audioPlayer.play();
+
+                updateStatus("再生中です。", 'green');
+
+            } catch (error) {
+                console.error("VOICEVOX APIエラー:", error);
+                updateStatus(`エラー: VOICEVOX Engineに接続できませんでした。Dockerが起動しているか、ポート (${VOICEVOX_URL}) が正しいか確認してください。`, 'red');
+            } finally {
+                speakButton.disabled = false;
+            }
+        }
+
+        // ページロード時に話者リストを取得する処理をここに追加できます（発展的な内容）
+        async function fetchSpeakers() {
+            try {
+                const response = await fetch(`${VOICEVOX_URL}/speakers`);
+                if (response.ok) {
+                    const speakers = await response.json();
+                    // 実際にはこのspeakersデータを使ってspeakerSelectを動的に構築します
+                    console.log("利用可能な話者データ:", speakers);
+                    // ここで動的に話者リストを構築するロジックを実装
+                } else {
+                    console.warn("話者リストの取得に失敗しました。デフォルト話者を使用します。");
+                }
+            } catch (e) {
+                console.error("VOICEVOX Engineへの接続エラー:", e);
+                // 接続エラーの場合は、デフォルトの話者を使用し続けます
+            }
+        }
+
+        fetchSpeakers();
+    </script>
+</body>
+</html>
