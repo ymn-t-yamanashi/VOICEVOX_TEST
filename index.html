@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>VOICEVOX TTS (ローカルAPI)</title>
+    <title>VOICEVOX TTS (ローカルAPI) + VUメーター</title>
     <style>
         body {
             font-family: sans-serif;
@@ -29,12 +29,29 @@
             margin-top: 10px;
             font-weight: bold;
         }
+        .audio-area {
+            display: flex;
+            align-items: flex-end;
+            gap: 15px; /* メーターとプレーヤーの間のスペース */
+        }
+        #vu-meter {
+            /* 調整しやすいように固定サイズを設定 */
+            width: 20px;
+            height: 150px;
+            border: 1px solid #ccc;
+            background-color: #333;
+            /* 通常は非表示 */
+            display: none; 
+        }
+        #audio-player {
+            flex-grow: 1; /* 残りのスペースを埋める */
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>VOICEVOX テキスト読み上げ</h1>
-        <p>ローカルでDocker起動したVOICEVOX Engine (50021ポート) に接続します。</p>
+        <p>ローカルでDocker起動したVOICEVOX Engine (50021ポート) に接続し、VUメーターを表示します。</p>
 
         <label for="speaker-select">話者選択:</label>
         <select id="speaker-select">
@@ -44,12 +61,15 @@
             </select>
         <br><br>
         
-        <textarea id="text-input" placeholder="ここに喋らせたいテキストを入力してください" required>こんにちは、VOICEVOXのテストです。</textarea>
+        <textarea id="text-input" placeholder="ここに喋らせたいテキストを入力してください" required>こんにちは、VOICEVOXとリアルタイムVUメーターのテストです。</textarea>
         
         <button id="speak-button" onclick="speakText()">喋らせる</button>
         <p class="status" id="status-message">準備完了</p>
         
-        <audio id="audio-player" controls style="width: 100%; margin-top: 15px; display: none;"></audio>
+        <div class="audio-area">
+            <canvas id="vu-meter"></canvas>
+            <audio id="audio-player" controls style="display: none;"></audio>
+        </div>
     </div>
 
     <script>
@@ -59,11 +79,110 @@
         const speakButton = document.getElementById('speak-button');
         const statusMessage = document.getElementById('status-message');
         const audioPlayer = document.getElementById('audio-player');
+        
+        // VUメーター用の要素
+        const vuMeterCanvas = document.getElementById('vu-meter');
+        // Canvasの2Dコンテキストを取得
+        const vuMeterCtx = vuMeterCanvas.getContext('2d'); 
+
+        // Web Audio API関連のグローバル変数
+        let audioContext = null;
+        let analyser = null;
+        let sourceNode = null;
+        let animationFrameId = null;
+
+        /**
+         * Web Audio APIの初期化
+         */
+        function initAudioContext() {
+            if (!audioContext) {
+                // クロスブラウザ対応
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                // データの粒度を設定 (小さい方が高速だが、VUメーターには256程度で十分)
+                analyser.fftSize = 256; 
+            }
+            // ブラウザのセキュリティ制約により、AudioContextが"suspended"になっている場合があるため、再開を試みる
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        /**
+         * VUメーターを描画するループ
+         */
+        function drawVuMeter() {
+            const canvasWidth = vuMeterCanvas.width;
+            const canvasHeight = vuMeterCanvas.height;
+            const bufferLength = analyser.frequencyBinCount;
+            // 周波数領域のデータ格納用配列
+            const dataArray = new Uint8Array(bufferLength);
+            
+            // 次の描画フレームをリクエスト
+            animationFrameId = requestAnimationFrame(drawVuMeter);
+            
+            // 音声データを取得
+            // 周波数データから音量感を抽出
+            analyser.getByteFrequencyData(dataArray);
+
+            // Canvasをクリア
+            vuMeterCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            vuMeterCtx.fillStyle = '#333';
+            vuMeterCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+
+            // リアルタイム音量の計算 (RMS値に近い計算)
+            // 取得した周波数データの平均値（音の強さ）を計算
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i]; // dataArray[i] は 0-255 の値
+            }
+            // 平均値を正規化 (0から1の範囲へ)
+            // 255をAnalyserの最大出力とする
+            let average = (sum / bufferLength) / 255; 
+
+            // メーターの高さを計算
+            // average * 1.5 で感度を上げ、視覚的に分かりやすく調整
+            const meterValue = average * 1.5; 
+            const level = Math.min(Math.max(meterValue * canvasHeight, 0), canvasHeight); // 0〜Canvasの高さにクランプ
+
+            // グラデーションの作成（緑→黄色→赤）
+            const gradient = vuMeterCtx.createLinearGradient(0, canvasHeight, 0, 0);
+            gradient.addColorStop(0, '#00FF00');     // 下端は緑
+            gradient.addColorStop(0.5, '#FFFF00');  // 中央は黄色
+            gradient.addColorStop(0.8, '#FF0000');     // 上端は赤（ピーク手前）
+
+            // メーター本体の描画
+            // 下から上に向かって描画 (Canvas座標は左上が(0,0))
+            vuMeterCtx.fillStyle = gradient;
+            vuMeterCtx.fillRect(0, canvasHeight - level, canvasWidth, level);
+        }
+        
+        /**
+         * VUメーターの描画を停止し、AudioContextをリセットします。
+         */
+        function stopVuMeter() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            vuMeterCanvas.style.display = 'none';
+            // Canvasをクリアして背景色で塗りつぶす
+            vuMeterCtx.fillStyle = '#333';
+            vuMeterCtx.fillRect(0, 0, vuMeterCanvas.width, vuMeterCanvas.height);
+            
+            if (sourceNode) {
+                // ノードの接続を解除してメモリを解放
+                if(sourceNode.disconnect) {
+                    sourceNode.disconnect();
+                }
+                sourceNode = null;
+            }
+        }
+
 
         /**
          * ステータスメッセージを更新します
-         * @param {string} message - 表示するメッセージ
-         * @param {string} color - メッセージの色 (オプション)
          */
         function updateStatus(message, color = 'black') {
             statusMessage.textContent = message;
@@ -84,7 +203,8 @@
 
             speakButton.disabled = true;
             updateStatus("音声クエリを作成中...", 'blue');
-            audioPlayer.style.display = 'none';
+            audioPlayer.style.display = 'none'; // HTML Audio Playerは使用しないので非表示のまま
+            stopVuMeter(); // 実行前にメーターを停止/非表示
 
             try {
                 // 1. **音声合成クエリ**の作成 (audio_query)
@@ -127,39 +247,62 @@
                     throw new Error(`synthesis failed with status ${synthesisResponse.status}`);
                 }
 
-                // 3. **音声データの取得と再生**
+                // 3. **音声データの取得とWeb Audio APIによる再生・メーター表示**
                 const wavBlob = await synthesisResponse.blob();
-                const audioUrl = URL.createObjectURL(wavBlob);
+                
+                // Web Audio APIの初期化
+                initAudioContext();
+                
+                // BlobをArrayBufferに変換
+                const arrayBuffer = await wavBlob.arrayBuffer();
+                
+                // ArrayBufferをAudioBufferにデコード (非同期)
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-                audioPlayer.src = audioUrl;
-                audioPlayer.style.display = 'block';
-                audioPlayer.play();
+                // SourceNodeの作成と接続
+                sourceNode = audioContext.createBufferSource();
+                sourceNode.buffer = audioBuffer;
+                
+                // AnalyserNodeを間に挟んで接続: Source -> Analyser -> Destination
+                sourceNode.connect(analyser);
+                analyser.connect(audioContext.destination);
+
+                // 再生開始
+                vuMeterCanvas.style.display = 'block'; // メーターを表示
+                sourceNode.start(0); // 0秒から再生
+                drawVuMeter(); // メーター描画ループを開始
 
                 updateStatus("再生中です。", 'green');
+                
+                // 再生終了時の処理
+                sourceNode.onended = () => {
+                    stopVuMeter();
+                    updateStatus("再生が完了しました。", 'black');
+                    speakButton.disabled = false;
+                };
 
             } catch (error) {
                 console.error("VOICEVOX APIエラー:", error);
+                stopVuMeter();
                 updateStatus(`エラー: VOICEVOX Engineに接続できませんでした。Dockerが起動しているか、ポート (${VOICEVOX_URL}) が正しいか確認してください。`, 'red');
-            } finally {
                 speakButton.disabled = false;
-            }
+            } 
         }
 
-        // ページロード時に話者リストを取得する処理をここに追加できます（発展的な内容）
+        // ページロード時に話者リストを取得する処理
         async function fetchSpeakers() {
             try {
                 const response = await fetch(`${VOICEVOX_URL}/speakers`);
                 if (response.ok) {
                     const speakers = await response.json();
-                    // 実際にはこのspeakersデータを使ってspeakerSelectを動的に構築します
                     console.log("利用可能な話者データ:", speakers);
-                    // ここで動的に話者リストを構築するロジックを実装
+                    // 実際にはこのデータを使ってspeakerSelectを動的に構築しますが、今回はデフォルトの選択肢を使用します。
                 } else {
                     console.warn("話者リストの取得に失敗しました。デフォルト話者を使用します。");
                 }
             } catch (e) {
+                // 初回クリックでAudioContextが再開できるよう、エラーになってもinitAudioContext()は残します
                 console.error("VOICEVOX Engineへの接続エラー:", e);
-                // 接続エラーの場合は、デフォルトの話者を使用し続けます
             }
         }
 
