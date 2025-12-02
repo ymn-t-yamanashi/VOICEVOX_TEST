@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>VOICEVOX TTS (ローカルAPI)</title>
     <style>
-        /* (CSS部分は変更なし) */
         body {
             font-family: sans-serif;
             padding: 20px;
@@ -29,10 +28,8 @@
         .audio-area {
             margin-top: 5px;
         }
-        /* プレイヤーを非表示にする */
-        #audio-player {
-            display: none; 
-        }
+        /* プレイヤーを非表示にする CSSも不要になるが、念のため残す */
+        /* #audio-player { display: none; } */ 
     </style>
 </head>
 <body>
@@ -58,8 +55,7 @@
         </button>
         
         <div class="audio-area">
-            <audio id="audio-player" controls></audio>
-        </div>
+            </div>
     </div>
     
     <script src="app.js"></script>

@@ -1,17 +1,11 @@
 const VOICEVOX_URL = "http://localhost:50021"; // VOICEVOX EngineのURL
 
-// 要素の取得 (UI制御に必要な要素のみ)
-// speakButton の制御は不要になったため、グローバルでの取得も不要になりますが、
-// index.htmlのonclickでspeakText関数が呼び出されるため、ここではaudioPlayerのみ残します。
-const audioPlayer = document.getElementById('audio-player');
+// 要素の取得 (audioPlayerは不要になったため削除)
 
 // --- 1. VOICEVOX API通信関数 (変更なし) ---
 
 /**
  * 1. VOICEVOX APIを使って音声合成クエリを取得します (audio_query)。
- * @param {string} text - 読み上げさせるテキスト
- * @param {string} speakerId - 話者ID 
- * @returns {Promise<object>} 音声クエリオブジェクト
  */
 async function fetchAudioQuery(text, speakerId) {
     const queryParams = new URLSearchParams({ text: text, speaker: speakerId });
@@ -30,9 +24,6 @@ async function fetchAudioQuery(text, speakerId) {
 
 /**
  * 2. VOICEVOX APIを使って音声合成を実行し、WAV形式のBlobを取得します (synthesis)。
- * @param {object} audioQuery - fetchAudioQueryで取得した音声クエリオブジェクト
- * @param {string} speakerId - 話者ID
- * @returns {Promise<Blob>} WAV形式の音声データBlob
  */
 async function fetchSynthesis(audioQuery, speakerId) {
     const synthesisParams = new URLSearchParams({ speaker: speakerId });
@@ -72,29 +63,40 @@ async function synthesizeTextToBlob(text, speakerId) {
 }
 
 
-// --- 3. メインアプリケーション関数 ---
+// --- 3. メインアプリケーション関数 (動的要素生成を追加) ---
 
 /**
  * ページからの onclick で呼び出されるエントリーポイント。
  */
 async function speakText(text, speakerId) {
-    // 🌟 speakButtonの制御を削除 🌟
-    // speakButton.disabled = true; <-- 削除
-    audioPlayer.removeAttribute('src'); 
+    // 🌟 audioPlayerは動的に生成するため、ここで取得は不要 🌟
 
     try {
-        // コアロジックを呼び出し、Blobを取得
+        // 1. コアロジックを呼び出し、Blobを取得
         const wavBlob = await synthesizeTextToBlob(text, speakerId);
         
-        // 再生ロジック（UI依存）
+        // 2. 🌟 JavaScript側で <audio> 要素を生成 🌟
+        const audioPlayer = new Audio(); // HTML5 Audio要素のインスタンスを作成
+        audioPlayer.style.display = 'none'; // 非表示のままにする (前回の要件を維持)
+
+        // 3. 再生ロジック
         const audioUrl = URL.createObjectURL(wavBlob);
         audioPlayer.src = audioUrl;
         
-        // 前の再生を中断し、新しい再生を開始
+        // 4. 再生開始
         await audioPlayer.play();
 
-        // 🌟 再生終了イベントの設定を削除 🌟
-        // audioPlayer.onended = () => { speakButton.disabled = false; }; <-- 削除
+        // 5. 再生終了後のクリーンアップ
+        audioPlayer.onended = () => {
+            // メモリを解放するため、URLオブジェクトを解放し、要素の参照を不要にする
+            URL.revokeObjectURL(audioUrl);
+            // （ここでは要素をDOMに追加していないため、DOMからの削除は不要）
+        };
+        // エラー時もURLを解放
+        audioPlayer.onerror = () => {
+             URL.revokeObjectURL(audioUrl);
+        };
+
 
     } catch (error) {
         // エラー詳細を console.error() で出力 
@@ -107,8 +109,5 @@ async function speakText(text, speakerId) {
         } else {
             console.error(`VOICEVOX Engine 接続エラー: ポート (${VOICEVOX_URL}) を確認してください。`);
         } 
-        
-        // 🌟 エラー発生時のボタン有効化処理を削除 🌟
-        // speakButton.disabled = false; <-- 削除
     } 
 }
