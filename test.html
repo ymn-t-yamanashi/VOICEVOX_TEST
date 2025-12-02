@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>VOICEVOX TTS (ローカルAPI)</title>
     <style>
+        /* (CSS部分は変更なし) */
         body {
             font-family: sans-serif;
             padding: 20px;
@@ -49,7 +50,12 @@
         
         <textarea id="text-input" placeholder="ここに喋らせたいテキストを入力してください" required>こんにちは、VOICEVOXの再生テストです。</textarea>
         
-        <button id="speak-button" onclick="speakText()">喋らせる</button>
+        <button 
+            id="speak-button" 
+            onclick="speakText(document.getElementById('text-input').value, document.getElementById('speaker-select').value)"
+        >
+            喋らせる
+        </button>
         
         <div class="audio-area">
             <audio id="audio-player" controls></audio>
