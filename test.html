@@ -30,10 +30,11 @@
             font-weight: bold;
         }
         .audio-area {
-            margin-top: 20px; /* プレーヤーのためのスペース */
+            margin-top: 5px; /* スペースを少し詰める */
         }
+        /* 🌟 ここが変更点: プレイヤーを非表示にする 🌟 */
         #audio-player {
-            width: 100%;
+            display: none; 
         }
     </style>
 </head>
@@ -141,10 +142,8 @@
                 const audioUrl = URL.createObjectURL(wavBlob);
                 audioPlayer.src = audioUrl;
 
-                // --- 🌟 ここが変更点 🌟 ---
                 // 再生開始
                 await audioPlayer.play();
-                // --------------------------
 
                 updateStatus("再生中です。", 'green');
                 
@@ -156,9 +155,9 @@
 
             } catch (error) {
                 console.error("VOICEVOX APIエラーまたは再生エラー:", error);
-                // play()はPromiseを返すため、自動再生がブロックされた場合もここで catch される可能性がある
                 if (error.name === "NotAllowedError") {
-                    updateStatus("再生がブロックされました。ブラウザのセキュリティ設定を確認してください（手動で再生ボタンを押してください）。", 'orange');
+                    // 非表示でも自動再生はブロックされる可能性があるため、このメッセージは維持
+                    updateStatus("再生がブロックされました。ブラウザのセキュリティ設定を確認してください。", 'orange');
                 } else {
                     updateStatus(`エラー: VOICEVOX Engineに接続できませんでした。ポート (${VOICEVOX_URL}) を確認してください。`, 'red');
                 }
