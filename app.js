@@ -1,8 +1,7 @@
 const VOICEVOX_URL = "http://localhost:50021"; // VOICEVOX EngineのURL
 
-// 要素の取得 (speakTextの呼び出し元でのみ使用)
-const textInput = document.getElementById('text-input');
-const speakerSelect = document.getElementById('speaker-select');
+// 要素の取得 (UI制御に必要な要素のみ)
+// textInput と speakerSelect は削除されました
 const speakButton = document.getElementById('speak-button');
 const audioPlayer = document.getElementById('audio-player');
 
@@ -10,9 +9,11 @@ const audioPlayer = document.getElementById('audio-player');
 
 /**
  * 1. VOICEVOX APIを使って音声合成クエリを取得します (audio_query)。
+ * @param {string} text - 読み上げさせるテキスト
+ * @param {string} speakerId - 話者ID 
+ * @returns {Promise<object>} 音声クエリオブジェクト
  */
 async function fetchAudioQuery(text, speakerId) {
-    // ... (中身は前回の app.js と同じ)
     const queryParams = new URLSearchParams({ text: text, speaker: speakerId });
     const queryUrl = `${VOICEVOX_URL}/audio_query?${queryParams}`;
 
@@ -29,9 +30,11 @@ async function fetchAudioQuery(text, speakerId) {
 
 /**
  * 2. VOICEVOX APIを使って音声合成を実行し、WAV形式のBlobを取得します (synthesis)。
+ * @param {object} audioQuery - fetchAudioQueryで取得した音声クエリオブジェクト
+ * @param {string} speakerId - 話者ID
+ * @returns {Promise<Blob>} WAV形式の音声データBlob
  */
 async function fetchSynthesis(audioQuery, speakerId) {
-    // ... (中身は前回の app.js と同じ)
     const synthesisParams = new URLSearchParams({ speaker: speakerId });
     const synthesisUrl = `${VOICEVOX_URL}/synthesis?${synthesisParams}`;
 
@@ -48,19 +51,14 @@ async function fetchSynthesis(audioQuery, speakerId) {
 }
 
 
-// --- 2. コアロジック関数 (UI依存性を排除) ---
+// --- 2. コアロジック関数 ---
 
 /**
  * VOICEVOX APIを使って音声データ(Blob)を取得する純粋なロジック関数。
- * 🌟 UIや再生処理のコードは一切含まない 🌟
- * @param {string} text - 読み上げさせるテキスト
- * @param {string} speakerId - 話者ID 
- * @returns {Promise<Blob>} WAV形式の音声データBlob
  */
 async function synthesizeTextToBlob(text, speakerId) {
     const trimmedText = text.trim();
     if (!trimmedText) {
-        // UI制御（エラー表示）は呼び出し元に任せるため、ここではエラーを投げる
         throw new Error("Text input is empty."); 
     }
 
@@ -78,7 +76,6 @@ async function synthesizeTextToBlob(text, speakerId) {
 
 /**
  * ページからの onclick で呼び出されるエントリーポイント。
- * UI制御とエラーハンドリングを担当します。
  */
 async function speakText(text, speakerId) {
     // UI制御: ボタンを無効化し、前の音声をクリア
