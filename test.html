@@ -61,11 +61,8 @@
         const textInput = document.getElementById('text-input');
         const speakerSelect = document.getElementById('speaker-select');
         const speakButton = document.getElementById('speak-button');
-        // const statusMessage = document.getElementById('status-message'); // 削除
         const audioPlayer = document.getElementById('audio-player');
         
-        // 🌟 updateStatus 関数を削除
-
         /**
          * テキストを音声に変換して再生します
          */
@@ -74,15 +71,12 @@
             const speakerId = speakerSelect.value;
 
             if (!text) {
-                // updateStatus("テキストを入力してください。", 'orange'); // 削除
-                alert("テキストを入力してください。"); // エラー通知のみ残す
+                alert("テキストを入力してください。");
                 return;
             }
 
             speakButton.disabled = true;
             audioPlayer.removeAttribute('src'); // 前の音声をクリア
-
-            // updateStatus("音声クエリを作成中...", 'blue'); // 削除
 
             try {
                 // 1. **音声合成クエリ**の作成 (audio_query)
@@ -105,8 +99,6 @@
 
                 const audioQuery = await queryResponse.json();
                 
-                // updateStatus("音声合成中...", 'blue'); // 削除
-
                 // 2. **音声合成**の実行 (synthesis)
                 const synthesisParams = new URLSearchParams({
                     speaker: speakerId
@@ -135,11 +127,8 @@
                 // 再生開始
                 await audioPlayer.play();
 
-                // updateStatus("再生中です。", 'green'); // 削除
-                
                 // 再生が終了したらボタンを有効に戻す
                 audioPlayer.onended = () => {
-                    // updateStatus("再生が完了しました。", 'black'); // 削除
                     speakButton.disabled = false;
                 };
 
@@ -159,22 +148,8 @@
             } 
         }
 
-        // ページロード時に話者リストを取得する処理
-        async function fetchSpeakers() {
-            try {
-                const response = await fetch(`${VOICEVOX_URL}/speakers`);
-                if (response.ok) {
-                    const speakers = await response.json();
-                    console.log("利用可能な話者データ:", speakers);
-                } else {
-                    console.warn("話者リストの取得に失敗しました。デフォルト話者を使用します。");
-                }
-            } catch (e) {
-                console.error("VOICEVOX Engineへの接続エラー:", e);
-            }
-        }
-
-        fetchSpeakers();
+        // 🌟 ページロード時の処理を削除
+        // fetchSpeakers(); 
     </script>
 </body>
 </html>
