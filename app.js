@@ -1,8 +1,8 @@
 const VOICEVOX_URL = "http://localhost:50021"; // VOICEVOX EngineのURL
 
 // 要素の取得 (UI制御に必要な要素のみ)
-// textInput と speakerSelect は削除されました
-const speakButton = document.getElementById('speak-button');
+// speakButton の制御は不要になったため、グローバルでの取得も不要になりますが、
+// index.htmlのonclickでspeakText関数が呼び出されるため、ここではaudioPlayerのみ残します。
 const audioPlayer = document.getElementById('audio-player');
 
 // --- 1. VOICEVOX API通信関数 (変更なし) ---
@@ -51,7 +51,7 @@ async function fetchSynthesis(audioQuery, speakerId) {
 }
 
 
-// --- 2. コアロジック関数 ---
+// --- 2. コアロジック関数 (変更なし) ---
 
 /**
  * VOICEVOX APIを使って音声データ(Blob)を取得する純粋なロジック関数。
@@ -72,14 +72,14 @@ async function synthesizeTextToBlob(text, speakerId) {
 }
 
 
-// --- 3. メインアプリケーション関数 (UI制御とコアロジックの結合) ---
+// --- 3. メインアプリケーション関数 ---
 
 /**
  * ページからの onclick で呼び出されるエントリーポイント。
  */
 async function speakText(text, speakerId) {
-    // UI制御: ボタンを無効化し、前の音声をクリア
-    speakButton.disabled = true;
+    // 🌟 speakButtonの制御を削除 🌟
+    // speakButton.disabled = true; <-- 削除
     audioPlayer.removeAttribute('src'); 
 
     try {
@@ -89,15 +89,15 @@ async function speakText(text, speakerId) {
         // 再生ロジック（UI依存）
         const audioUrl = URL.createObjectURL(wavBlob);
         audioPlayer.src = audioUrl;
+        
+        // 前の再生を中断し、新しい再生を開始
         await audioPlayer.play();
 
-        // 再生終了イベントの設定
-        audioPlayer.onended = () => {
-            speakButton.disabled = false;
-        };
+        // 🌟 再生終了イベントの設定を削除 🌟
+        // audioPlayer.onended = () => { speakButton.disabled = false; }; <-- 削除
 
     } catch (error) {
-        // エラー詳細を console.error() で出力し、UIを元に戻す
+        // エラー詳細を console.error() で出力 
         console.error("致命的なエラーが発生しました:", error.message, error);
         
         if (error.message.includes("Text input is empty")) {
@@ -108,7 +108,7 @@ async function speakText(text, speakerId) {
             console.error(`VOICEVOX Engine 接続エラー: ポート (${VOICEVOX_URL}) を確認してください。`);
         } 
         
-        // エラー発生時はボタンを有効に戻す
-        speakButton.disabled = false;
+        // 🌟 エラー発生時のボタン有効化処理を削除 🌟
+        // speakButton.disabled = false; <-- 削除
     } 
 }
