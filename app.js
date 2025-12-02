@@ -89,7 +89,8 @@ async function speakText() {
     const speakerId = speakerSelect.value;
 
     if (!text) {
-        alert("テキストを入力してください。");
+        // alert() を使用せず、console.error() でログを出すのみ
+        console.error("エラー: テキストが入力されていません。");
         return;
     }
 
@@ -111,15 +112,16 @@ async function speakText() {
         };
 
     } catch (error) {
-        console.error("エラー:", error);
+        // エラー詳細を console.error() で出力
+        console.error("致命的なエラーが発生しました:", error.message, error);
         
-        let errorMessage = `エラー: VOICEVOX Engineに接続できませんでした。ポート (${VOICEVOX_URL}) を確認してください。`;
-
         if (error.name === "NotAllowedError") {
-            errorMessage = "再生がブロックされました。ブラウザのセキュリティ設定を確認してください。";
+            // 再生ブロックに関するメッセージもログに出力
+            console.warn("警告: 再生がブラウザによってブロックされました。ユーザー操作が必要です。");
+        } else if (error.message.includes("failed with status")) {
+            // API接続エラー
+            console.error(`VOICEVOX Engine 接続エラー: ポート (${VOICEVOX_URL}) を確認してください。`);
         } 
-        
-        alert(errorMessage); 
         
         // エラー発生時はボタンを有効に戻す
         speakButton.disabled = false;
