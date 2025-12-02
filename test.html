@@ -25,14 +25,10 @@
             padding: 20px;
             border-radius: 8px;
         }
-        .status {
-            margin-top: 10px;
-            font-weight: bold;
-        }
         .audio-area {
-            margin-top: 5px; /* スペースを少し詰める */
+            margin-top: 5px;
         }
-        /* 🌟 ここが変更点: プレイヤーを非表示にする 🌟 */
+        /* プレイヤーを非表示にする */
         #audio-player {
             display: none; 
         }
@@ -54,7 +50,6 @@
         <textarea id="text-input" placeholder="ここに喋らせたいテキストを入力してください" required>こんにちは、VOICEVOXの再生テストです。</textarea>
         
         <button id="speak-button" onclick="speakText()">喋らせる</button>
-        <p class="status" id="status-message">準備完了</p>
         
         <div class="audio-area">
             <audio id="audio-player" controls></audio>
@@ -66,16 +61,10 @@
         const textInput = document.getElementById('text-input');
         const speakerSelect = document.getElementById('speaker-select');
         const speakButton = document.getElementById('speak-button');
-        const statusMessage = document.getElementById('status-message');
+        // const statusMessage = document.getElementById('status-message'); // 削除
         const audioPlayer = document.getElementById('audio-player');
         
-        /**
-         * ステータスメッセージを更新します
-         */
-        function updateStatus(message, color = 'black') {
-            statusMessage.textContent = message;
-            statusMessage.style.color = color;
-        }
+        // 🌟 updateStatus 関数を削除
 
         /**
          * テキストを音声に変換して再生します
@@ -85,14 +74,15 @@
             const speakerId = speakerSelect.value;
 
             if (!text) {
-                updateStatus("テキストを入力してください。", 'orange');
+                // updateStatus("テキストを入力してください。", 'orange'); // 削除
+                alert("テキストを入力してください。"); // エラー通知のみ残す
                 return;
             }
 
             speakButton.disabled = true;
             audioPlayer.removeAttribute('src'); // 前の音声をクリア
 
-            updateStatus("音声クエリを作成中...", 'blue');
+            // updateStatus("音声クエリを作成中...", 'blue'); // 削除
 
             try {
                 // 1. **音声合成クエリ**の作成 (audio_query)
@@ -115,7 +105,7 @@
 
                 const audioQuery = await queryResponse.json();
                 
-                updateStatus("音声合成中...", 'blue');
+                // updateStatus("音声合成中...", 'blue'); // 削除
 
                 // 2. **音声合成**の実行 (synthesis)
                 const synthesisParams = new URLSearchParams({
@@ -145,27 +135,31 @@
                 // 再生開始
                 await audioPlayer.play();
 
-                updateStatus("再生中です。", 'green');
+                // updateStatus("再生中です。", 'green'); // 削除
                 
                 // 再生が終了したらボタンを有効に戻す
                 audioPlayer.onended = () => {
-                    updateStatus("再生が完了しました。", 'black');
+                    // updateStatus("再生が完了しました。", 'black'); // 削除
                     speakButton.disabled = false;
                 };
 
             } catch (error) {
                 console.error("VOICEVOX APIエラーまたは再生エラー:", error);
+                
+                let errorMessage = `エラー: VOICEVOX Engineに接続できませんでした。ポート (${VOICEVOX_URL}) を確認してください。`;
+
                 if (error.name === "NotAllowedError") {
-                    // 非表示でも自動再生はブロックされる可能性があるため、このメッセージは維持
-                    updateStatus("再生がブロックされました。ブラウザのセキュリティ設定を確認してください。", 'orange');
-                } else {
-                    updateStatus(`エラー: VOICEVOX Engineに接続できませんでした。ポート (${VOICEVOX_URL}) を確認してください。`, 'red');
-                }
+                    errorMessage = "再生がブロックされました。ブラウザのセキュリティ設定を確認してください。";
+                } 
+                
+                // エラー通知のみ alert で表示
+                alert(errorMessage); 
+                
                 speakButton.disabled = false;
             } 
         }
 
-        // ページロード時に話者リストを取得する処理（変更なし）
+        // ページロード時に話者リストを取得する処理
         async function fetchSpeakers() {
             try {
                 const response = await fetch(`${VOICEVOX_URL}/speakers`);
